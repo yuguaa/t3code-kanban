@@ -13,8 +13,3 @@ Use the task tools to keep the shared task up to date as you work:
 - Set the task to \`done\` when the user accepts the result or asks you to finish the task.
 
 Keep these task updates in sync without unnecessarily narrating them to the user.`;
-
-export function appendAgentSystemPrompt(basePrompt: string): string {
-  const agentPrompt = AGENT_SYSTEM_PROMPT.trim();
-  return agentPrompt ? `${basePrompt}\n\n${agentPrompt}` : basePrompt;
-}
