@@ -40,6 +40,8 @@ import {
   DeviceScreenshotToolkit,
   DeviceStandardToolkit,
 } from "./toolkits/device/tools.ts";
+import { TaskToolkitHandlersLive } from "./toolkits/task/handlers.ts";
+import { TaskToolkit } from "./toolkits/task/tools.ts";
 
 const unauthorized = HttpServerResponse.jsonUnsafe(
   {
@@ -621,6 +623,10 @@ export const DeviceToolkitRegistrationLive = Layer.mergeAll(
   DeviceScreenshotRegistrationLive,
 );
 
+const TaskToolkitRegistrationLive = McpServer.toolkit(TaskToolkit).pipe(
+  Layer.provide(TaskToolkitHandlersLive),
+);
+
 const McpTransportLive = McpServer.layerHttp({
   name: "T3 Code",
   version: packageJson.version,
@@ -632,4 +638,5 @@ export const layer = Layer.mergeAll(
   PreviewToolkitRegistrationLive,
   PullRequestsToolkitRegistrationLive,
   DeviceToolkitRegistrationLive,
+  TaskToolkitRegistrationLive,
 ).pipe(Layer.provideMerge(McpTransportLive));

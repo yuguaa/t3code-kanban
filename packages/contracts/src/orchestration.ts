@@ -386,8 +386,30 @@ export const UserInputAttachmentAnswerPayload = Schema.Struct({
   attachmentsByQuestionId: UserInputAttachments,
 });
 export type UserInputAttachmentAnswerPayload = typeof UserInputAttachmentAnswerPayload.Type;
+
+/** Business properties of the same durable Thread; execution state stays native. */
+export const ThreadTaskDetails = Schema.Struct({
+  content: Schema.String,
+  attachments: Schema.Array(ChatImageAttachment),
+  statusId: TrimmedNonEmptyString,
+  orderKey: Schema.String,
+  assigned: Schema.optional(Schema.Boolean),
+  workspaceMode: Schema.optional(ThreadEnvMode),
+});
+export type ThreadTaskDetails = typeof ThreadTaskDetails.Type;
+
 const UploadChatAttachment = Schema.Union([UploadChatImageAttachment]);
 export type UploadChatAttachment = typeof UploadChatAttachment.Type;
+
+/** Client form of task details: attachments may still carry pending uploads. */
+const ClientThreadTaskDetails = Schema.Struct({
+  content: Schema.String,
+  attachments: Schema.Array(Schema.Union([UploadChatAttachment, ChatImageAttachment])),
+  statusId: TrimmedNonEmptyString,
+  orderKey: Schema.String,
+  assigned: Schema.optional(Schema.Boolean),
+  workspaceMode: Schema.optional(ThreadEnvMode),
+});
 
 export const ProjectScriptIcon = Schema.Literals([
   "play",
@@ -772,6 +794,7 @@ export type ThreadPullRequestLink = typeof ThreadPullRequestLink.Type;
 
 export const OrchestrationThread = Schema.Struct({
   id: ThreadId,
+  task: Schema.optional(Schema.NullOr(ThreadTaskDetails)),
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
   modelSelection: ModelSelection,
@@ -859,6 +882,7 @@ export type OrchestrationProjectShell = typeof OrchestrationProjectShell.Type;
 
 export const OrchestrationThreadShell = Schema.Struct({
   id: ThreadId,
+  task: Schema.optional(Schema.NullOr(ThreadTaskDetails)),
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
   modelSelection: ModelSelection,
@@ -1093,6 +1117,25 @@ const ProjectDeleteCommand = Schema.Struct({
 
 const ThreadCreateCommand = Schema.Struct({
   type: Schema.Literal("thread.create"),
+  task: Schema.optional(ThreadTaskDetails),
+  commandId: CommandId,
+  threadId: ThreadId,
+  projectId: ProjectId,
+  title: TrimmedNonEmptyString,
+  modelSelection: ModelSelection,
+  runtimeMode: RuntimeMode,
+  interactionMode: ProviderInteractionMode.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROVIDER_INTERACTION_MODE)),
+  ),
+  branch: Schema.NullOr(TrimmedNonEmptyString),
+  worktreePath: Schema.NullOr(TrimmedNonEmptyString),
+  createdAt: IsoDateTime,
+  historyImport: Schema.optional(Schema.Literal(true)),
+});
+
+const ClientThreadCreateCommand = Schema.Struct({
+  type: Schema.Literal("thread.create"),
+  task: Schema.optional(ClientThreadTaskDetails),
   commandId: CommandId,
   threadId: ThreadId,
   projectId: ProjectId,
@@ -1207,6 +1250,7 @@ const ThreadActiveReorderCommand = Schema.Struct({
 
 const ThreadMetaUpdateCommand = Schema.Struct({
   type: Schema.Literal("thread.meta.update"),
+  task: Schema.optional(ThreadTaskDetails),
   commandId: CommandId,
   threadId: ThreadId,
   title: Schema.optional(TrimmedNonEmptyString),
@@ -1259,6 +1303,7 @@ const ThreadInteractionModeSetCommand = Schema.Struct({
 const ThreadTurnStartBootstrapCreateThread = Schema.Struct({
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
+  task: Schema.optional(ThreadTaskDetails),
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
@@ -1422,13 +1467,15 @@ const DispatchableClientOrchestrationCommand = Schema.Union([
   ThreadSessionStopCommand,
 ]);
 export type DispatchableClientOrchestrationCommand =
-  typeof DispatchableClientOrchestrationCommand.Type;
+  | Exclude<ClientOrchestrationCommand, { readonly type: "thread.create" | "thread.turn.start" }>
+  | typeof ThreadCreateCommand.Type
+  | typeof ThreadTurnStartCommand.Type;
 
 export const ClientOrchestrationCommand = Schema.Union([
   ProjectCreateCommand,
   ProjectMetaUpdateCommand,
   ProjectDeleteCommand,
-  ThreadCreateCommand,
+  ClientThreadCreateCommand,
   ThreadDeleteCommand,
   ThreadArchiveCommand,
   ThreadUnarchiveCommand,
@@ -1729,6 +1776,7 @@ export const ThreadCreatedPayload = Schema.Struct({
   threadId: ThreadId,
   projectId: ProjectId,
   title: TrimmedNonEmptyString,
+  task: Schema.optional(ThreadTaskDetails),
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode.pipe(Schema.withDecodingDefault(Effect.succeed(DEFAULT_RUNTIME_MODE))),
   interactionMode: ProviderInteractionMode.pipe(
@@ -1807,6 +1855,7 @@ export const ThreadPinReorderedPayload = Schema.Struct({
 
 export const ThreadMetaUpdatedPayload = Schema.Struct({
   threadId: ThreadId,
+  task: Schema.optional(ThreadTaskDetails),
   // Order updates use this existing event so older clients can ignore the
   // new field while continuing to decode the event stream.
   activeOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),

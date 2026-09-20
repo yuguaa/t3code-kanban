@@ -156,6 +156,7 @@ import * as UsageLimitSources from "./usage/UsageLimitSources.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
 import * as PullRequestService from "./pullRequest/PullRequestService.ts";
+import * as TaskWorkbench from "./taskWorkbench.ts";
 import { listLinkedPullRequestThreads } from "./pullRequest/linkedThreads.ts";
 import { pullRequestSyncKey } from "./pullRequest/pullRequestSyncKey.ts";
 import * as SqlClient from "effect/unstable/sql/SqlClient";
@@ -663,6 +664,7 @@ const makeWsRpcLayer = (
       const hostResources = yield* HostResources.HostResources;
       const processResourceMonitor = yield* ProcessResourceMonitor.ProcessResourceMonitor;
       const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
+      const taskWorkbench = yield* TaskWorkbench.TaskWorkbench;
       const usage = yield* UsageService.UsageService;
       const relayClient = yield* RelayClient.RelayClient;
       const authorizationError = (requiredScope: AuthEnvironmentScope) =>
@@ -3692,6 +3694,14 @@ const makeWsRpcLayer = (
             ),
             { "rpc.aggregate": "server" },
           ),
+        [WS_METHODS.taskWorkbenchMutate]: (input) =>
+          observeRpcEffect(WS_METHODS.taskWorkbenchMutate, taskWorkbench.mutate(input), {
+            "rpc.aggregate": "task-workbench",
+          }),
+        [WS_METHODS.taskWorkbenchSubscribe]: (_input) =>
+          observeRpcStream(WS_METHODS.taskWorkbenchSubscribe, taskWorkbench.stream, {
+            "rpc.aggregate": "task-workbench",
+          }),
       });
     }),
   );
@@ -3726,6 +3736,7 @@ export const websocketRpcRouteLayer = Layer.unwrap(
         ),
     });
     const pullRequests = yield* PullRequestService.PullRequestService;
+    const taskWorkbench = yield* TaskWorkbench.TaskWorkbench;
     const sql = yield* SqlClient.SqlClient;
     return HttpRouter.add(
       "GET",
@@ -3774,6 +3785,7 @@ export const websocketRpcRouteLayer = Layer.unwrap(
               // One server-lifetime service means clients share the same PR caches, and a WS
               // mutation invalidates the HTTP diff cache that every client reads from.
               Layer.provide(Layer.succeed(PullRequestService.PullRequestService, pullRequests)),
+              Layer.provide(Layer.succeed(TaskWorkbench.TaskWorkbench, taskWorkbench)),
               Layer.provide(
                 SourceControlDiscovery.layer.pipe(
                   Layer.provide(

@@ -86,6 +86,11 @@ import {
 } from "./review.ts";
 import { KeybindingsConfigError } from "./keybindings.ts";
 import {
+  TaskWorkbenchError,
+  TaskWorkbenchMutation,
+  TaskWorkbenchSnapshot,
+} from "./taskWorkbench.ts";
+import {
   ClientOrchestrationCommand,
   ORCHESTRATION_WS_METHODS,
   OrchestrationDispatchCommandError,
@@ -273,6 +278,8 @@ import {
 import { VcsError } from "./vcs.ts";
 
 export const WS_METHODS = {
+  taskWorkbenchMutate: "tasks.mutate",
+  taskWorkbenchSubscribe: "tasks.subscribe",
   // Project registry methods
   projectsList: "projects.list",
   projectsAdd: "projects.add",
@@ -1382,6 +1389,17 @@ const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTel
 });
 
 export const WsRpcGroup = RpcGroup.make(
+  Rpc.make(WS_METHODS.taskWorkbenchMutate, {
+    payload: TaskWorkbenchMutation,
+    success: Schema.Void,
+    error: Schema.Union([TaskWorkbenchError, EnvironmentAuthorizationError]),
+  }),
+  Rpc.make(WS_METHODS.taskWorkbenchSubscribe, {
+    payload: Schema.Struct({}),
+    success: TaskWorkbenchSnapshot,
+    error: Schema.Union([TaskWorkbenchError, EnvironmentAuthorizationError]),
+    stream: true,
+  }),
   WsServerProbeRpc,
   WsServerGetConfigRpc,
   WsServerRefreshProvidersRpc,

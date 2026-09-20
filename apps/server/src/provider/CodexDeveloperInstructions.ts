@@ -1,4 +1,5 @@
 import type { ProviderInteractionMode } from "@t3tools/contracts";
+import { AGENT_SYSTEM_PROMPT } from "./AgentSystemPrompt.ts";
 import { buildRuntimeInstructions } from "./RuntimeInstructions.ts";
 
 const T3_CODE_BROWSER_TOOL_INSTRUCTIONS = `
@@ -22,12 +23,15 @@ The \`t3-code\` MCP server also exposes \`device_*\` tools for iOS Simulators an
 export interface T3CodeToolAvailability {
   readonly browser: boolean;
   readonly device: boolean;
+  readonly task: boolean;
 }
 
 const normalizeAvailability = (
   availability: boolean | T3CodeToolAvailability,
 ): T3CodeToolAvailability =>
-  typeof availability === "boolean" ? { browser: availability, device: false } : availability;
+  typeof availability === "boolean"
+    ? { browser: availability, device: false, task: false }
+    : availability;
 
 /**
  * Each block is omitted entirely when its tools aren't attached. Describing
@@ -36,6 +40,11 @@ const normalizeAvailability = (
  * from Playwright, agent-browser, and raw simctl/adb, so leaving them in would
  * talk it out of the only automation it still has.
  */
+const taskToolInstructions = (availability: boolean | T3CodeToolAvailability): string => {
+  const tools = normalizeAvailability(availability);
+  return tools.task ? `\n\n${AGENT_SYSTEM_PROMPT}` : "";
+};
+
 const browserToolInstructions = (availability: boolean | T3CodeToolAvailability): string => {
   const tools = normalizeAvailability(availability);
   return `${tools.browser ? T3_CODE_BROWSER_TOOL_INSTRUCTIONS : ""}${
@@ -211,7 +220,7 @@ export function buildCodexDeveloperInstructions(
     interactionMode === "plan"
       ? codexPlanModeDeveloperInstructions(browserToolsAvailable)
       : codexDefaultModeDeveloperInstructions(browserToolsAvailable);
-  return `${base}
+  return `${base}${taskToolInstructions(browserToolsAvailable)}
 
 ${buildRuntimeInstructions({ harness: "Codex", ...runtime })}`;
 }

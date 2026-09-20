@@ -29,6 +29,7 @@ import {
   ThreadMessageSentPayload,
   ThreadMetaUpdatedPayload,
   ThreadLinkedPullRequest,
+  ThreadTaskDetails,
   ThreadTurnStartCommand,
   ThreadCreatedPayload,
   ThreadTurnDiff,
@@ -69,8 +70,64 @@ const decodeThreadCreatedPayload = Schema.decodeUnknownEffect(ThreadCreatedPaylo
 const decodeOrchestrationCommand = Schema.decodeUnknownEffect(OrchestrationCommand);
 const decodeOrchestrationEvent = Schema.decodeUnknownEffect(OrchestrationEvent);
 const decodeThreadMetaUpdatedPayload = Schema.decodeUnknownEffect(ThreadMetaUpdatedPayload);
+const decodeThreadTaskDetails = Schema.decodeUnknownEffect(ThreadTaskDetails);
 const decodeDispatchCommandError = Schema.decodeUnknownEffect(OrchestrationDispatchCommandError);
 const decodeSnapShotAccessibility = Schema.decodeUnknownEffect(SnapShotAccessibility);
+
+it.effect("preserves delayed task assignment metadata", () =>
+  Effect.gen(function* () {
+    const task = yield* decodeThreadTaskDetails({
+      content: "Run this later",
+      attachments: [],
+      statusId: "todo",
+      orderKey: "a0",
+      assigned: false,
+      workspaceMode: "worktree",
+    });
+
+    assert.strictEqual(task.assigned, false);
+    assert.strictEqual(task.workspaceMode, "worktree");
+  }),
+);
+
+it.effect("accepts uploaded images when an unassigned task is created", () =>
+  Effect.gen(function* () {
+    const command = yield* decodeClientOrchestrationCommand({
+      type: "thread.create",
+      commandId: "command-1",
+      threadId: "thread-1",
+      projectId: "project-1",
+      title: "Image task",
+      task: {
+        content: "",
+        attachments: [
+          {
+            type: "image",
+            name: "reference.png",
+            mimeType: "image/png",
+            sizeBytes: 3,
+            dataUrl: "data:image/png;base64,YWJj",
+          },
+        ],
+        statusId: "todo",
+        orderKey: "a0",
+        assigned: false,
+      },
+      modelSelection: { instanceId: "codex", model: "gpt-5.6" },
+      runtimeMode: DEFAULT_RUNTIME_MODE,
+      interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE,
+      branch: "main",
+      worktreePath: null,
+      createdAt: "2026-08-29T10:00:00.000Z",
+    });
+
+    if (command.type !== "thread.create") {
+      throw new Error("Expected thread.create command");
+    }
+    assert.strictEqual(command.task?.assigned, false);
+    assert.strictEqual(command.task?.attachments.length, 1);
+  }),
+);
 
 it.effect("decodes a dispatch error after its bootstrap thread was deleted", () =>
   Effect.gen(function* () {

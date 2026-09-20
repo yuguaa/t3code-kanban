@@ -15,6 +15,7 @@ import type {
 import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
 import {
   Bot,
+  ClipboardList,
   Smartphone,
   ChevronDown,
   ChevronLeft,
@@ -117,6 +118,7 @@ interface RightPanelTabsProps {
   onAddPullRequests: () => void;
   onAddAgents: () => void;
   onAddDevice: () => void;
+  onAddTaskDetails: () => void;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -125,6 +127,7 @@ interface RightPanelTabsProps {
   pullRequestsAvailable: boolean;
   agentsAvailable: boolean;
   deviceAvailable: boolean;
+  taskDetailsAvailable: boolean;
   pullRequestStatusSeeds?: Readonly<Record<string, PullRequestTabStatusSeed>>;
   /** Running + waiting subagents; badges the Agents card in the empty state. */
   liveAgentCount: number;
@@ -156,6 +159,7 @@ const SURFACE_DISABLED_REASONS = {
   pullRequests: "No linked pull requests are available for this thread.",
   agents: "Agents are only available from a thread.",
   device: "Devices are only available from a thread.",
+  taskDetails: "Task details are only available from a task thread.",
 } as const;
 
 /** Overlays that must win over the launcher's letter shortcuts. */
@@ -180,6 +184,7 @@ const SURFACE_UNAVAILABLE_HINTS = {
   pullRequests: "No linked pull requests available.",
   agents: "Available from a thread.",
   device: "Available from a thread.",
+  taskDetails: "Task details are only available from a task thread.",
 } as const;
 
 type TabContextMenuAction =
@@ -320,6 +325,7 @@ function RightPanelEmptyState(props: {
   onAddPullRequests: () => void;
   onAddAgents: () => void;
   onAddDevice: () => void;
+  onAddTaskDetails: () => void;
   browserAvailable: boolean;
   terminalAvailable: boolean;
   diffAvailable: boolean;
@@ -328,12 +334,23 @@ function RightPanelEmptyState(props: {
   pullRequestsAvailable: boolean;
   agentsAvailable: boolean;
   deviceAvailable: boolean;
+  taskDetailsAvailable: boolean;
   liveAgentCount: number;
 }) {
   // -1 means no highlight: it only appears on hover or arrow use.
   const [highlight, setHighlight] = useState(-1);
 
   const actions = [
+    {
+      label: "Task details",
+      description: "View and edit this task.",
+      icon: ClipboardList,
+      shortcut: "K",
+      available: props.taskDetailsAvailable,
+      disabledReason: SURFACE_UNAVAILABLE_HINTS.taskDetails,
+      onClick: props.onAddTaskDetails,
+      badgeCount: 0,
+    },
     {
       label: "Browser",
       icon: Globe2,
@@ -631,6 +648,8 @@ function surfaceTitle(
       return "Agents";
     case "device":
       return surface.title ?? surface.target?.name ?? "Device";
+    case "task-details":
+      return "Task details";
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
@@ -722,6 +741,8 @@ function SurfaceIcon({
       ) : (
         <Smartphone className="size-3 shrink-0" />
       );
+    case "task-details":
+      return <ClipboardList className="size-3 shrink-0" />;
   }
 }
 
@@ -861,6 +882,15 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   }, []);
 
   const addSurfaceActions = [
+    {
+      label: "Task details",
+      description: "View and edit this task.",
+      icon: ClipboardList,
+      shortcut: "K",
+      available: props.taskDetailsAvailable,
+      disabledReason: SURFACE_DISABLED_REASONS.taskDetails,
+      onClick: props.onAddTaskDetails,
+    },
     {
       label: "Browser",
       icon: Globe2,
@@ -1397,6 +1427,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddPullRequests={props.onAddPullRequests}
             onAddAgents={props.onAddAgents}
             onAddDevice={props.onAddDevice}
+            onAddTaskDetails={props.onAddTaskDetails}
             browserAvailable={props.browserAvailable}
             terminalAvailable={props.terminalAvailable}
             diffAvailable={props.diffAvailable}
@@ -1405,6 +1436,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             pullRequestsAvailable={props.pullRequestsAvailable}
             agentsAvailable={props.agentsAvailable}
             deviceAvailable={props.deviceAvailable}
+            taskDetailsAvailable={props.taskDetailsAvailable}
             liveAgentCount={props.liveAgentCount}
           />
         ) : (

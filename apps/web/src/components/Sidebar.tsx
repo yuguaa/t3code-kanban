@@ -53,12 +53,14 @@ import {
   EyeIcon,
   FolderIcon,
   GitBranchIcon,
+  InboxIcon,
   MessageCircleQuestionIcon,
   PinIcon,
   PinOffIcon,
   PlusIcon,
   SettingsIcon,
   ShieldQuestionIcon,
+  SquareKanbanIcon,
   SquarePenIcon,
   TerminalIcon,
   Undo2Icon,
@@ -77,9 +79,10 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { useParams, useRouter } from "@tanstack/react-router";
+import { useParams, useRouter, useLocation, Link } from "@tanstack/react-router";
 
 import { useRightPanelStore } from "../rightPanelStore";
+import { useTaskWorkbenches } from "../state/taskWorkbench";
 import {
   isAtomCommandInterrupted,
   settlePromise,
@@ -2148,6 +2151,50 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
     </li>
   );
 });
+
+/** Inbox and Task board entries rendered above the thread search row. */
+function WorkbenchNav() {
+  const location = useLocation();
+  const { snapshots } = useTaskWorkbenches();
+  const unread = [...snapshots.values()].reduce(
+    (total, snapshot) => total + snapshot.unreadCount,
+    0,
+  );
+  const row =
+    "flex min-h-8 flex-1 items-center gap-2.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground";
+  return (
+    <nav aria-label="Workbench navigation" className="mb-1 flex items-center gap-1">
+      <Link
+        to="/inbox"
+        className={cn(
+          row,
+          location.pathname === "/inbox" && "bg-sidebar-accent text-sidebar-foreground",
+        )}
+      >
+        <InboxIcon className="size-4" />
+        Inbox
+        {unread > 0 && (
+          <span className="ml-auto rounded-md bg-muted px-1.5 text-[11px] tabular-nums">
+            {unread}
+          </span>
+        )}
+      </Link>
+      <Link
+        to="/"
+        search={{}}
+        className={cn(
+          row,
+          location.pathname === "/" &&
+            location.searchStr === "" &&
+            "bg-sidebar-accent text-sidebar-foreground",
+        )}
+      >
+        <SquareKanbanIcon className="size-4" />
+        Task board
+      </Link>
+    </nav>
+  );
+}
 
 export default function Sidebar() {
   const projects = useProjects();
@@ -4434,6 +4481,7 @@ export default function Sidebar() {
           // Lifted above the stage backdrop, whose fade bleeds below the
           // header and would otherwise paint across the search row's outline.
           <SidebarGroup className="relative z-[1] p-[var(--sidebar-content-inset)] pt-1">
+            <WorkbenchNav />
             <SidebarThreadHeader
               searchFieldRef={headerSearchRef}
               hasProjects={projectGroups.length > 0}

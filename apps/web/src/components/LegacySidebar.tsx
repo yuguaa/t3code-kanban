@@ -7,7 +7,9 @@ import {
   ChevronRightIcon,
   FolderPlusIcon,
   Globe2Icon,
+  InboxIcon,
   SearchIcon,
+  SquareKanbanIcon,
   SquarePenIcon,
   TerminalIcon,
   TriangleAlertIcon,
@@ -64,7 +66,7 @@ import {
   settlePromise,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import { useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouter, useLocation, Link } from "@tanstack/react-router";
 import {
   MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
   MIN_SIDEBAR_THREAD_PREVIEW_COUNT,
@@ -80,6 +82,7 @@ import { useOpenPrLink } from "../lib/openPullRequestLink";
 import { releaseProjectDraftUploads } from "../lib/composerDraftUploads";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { isMacPlatform } from "../lib/utils";
+import { cn } from "../lib/utils";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import {
@@ -88,6 +91,7 @@ import {
   useThreadShells,
   useThreadShellsForProjectRefs,
 } from "../state/entities";
+import { useTaskWorkbenches } from "../state/taskWorkbench";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useThreadRunningTerminalIds } from "../state/terminalSessions";
 import { useThreadDiscoveredPorts } from "../portDiscoveryState";
@@ -2973,6 +2977,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
         // Lifted above the stage backdrop, whose fade bleeds below the
         // header and would otherwise paint across the search row's outline.
         <SidebarGroup className="relative z-[1] px-2 pt-2 pb-1">
+          <LegacyWorkbenchNav />
           <SidebarMenu>
             <SidebarMenuItem>
               <CommandDialogTrigger
@@ -3134,6 +3139,50 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     </SidebarContent>
   );
 });
+
+/** Inbox and Task board entries rendered above the search field. */
+function LegacyWorkbenchNav() {
+  const location = useLocation();
+  const { snapshots } = useTaskWorkbenches();
+  const unread = [...snapshots.values()].reduce(
+    (total, snapshot) => total + snapshot.unreadCount,
+    0,
+  );
+  const row =
+    "flex min-h-8 flex-1 items-center gap-2.5 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground";
+  return (
+    <nav aria-label="Workbench navigation" className="mb-1 flex items-center gap-1">
+      <Link
+        to="/inbox"
+        className={cn(
+          row,
+          location.pathname === "/inbox" && "bg-sidebar-accent text-sidebar-foreground",
+        )}
+      >
+        <InboxIcon className="size-4" />
+        Inbox
+        {unread > 0 && (
+          <span className="ml-auto rounded-md bg-muted px-1.5 text-[11px] tabular-nums">
+            {unread}
+          </span>
+        )}
+      </Link>
+      <Link
+        to="/"
+        search={{}}
+        className={cn(
+          row,
+          location.pathname === "/" &&
+            location.searchStr === "" &&
+            "bg-sidebar-accent text-sidebar-foreground",
+        )}
+      >
+        <SquareKanbanIcon className="size-4" />
+        Task board
+      </Link>
+    </nav>
+  );
+}
 
 export default function LegacySidebar() {
   const projects = useProjects();

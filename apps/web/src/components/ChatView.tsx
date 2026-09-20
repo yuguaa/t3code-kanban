@@ -217,6 +217,7 @@ import { PullRequestDetailGhost } from "./pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "./pullRequest/PullRequestsUnavailableState";
 import { RightPanelTabs } from "./RightPanelTabs";
 import { AgentsPanel } from "./AgentsPanel";
+import { TaskDetailsPanel } from "./tasks/TaskDetailsPanel";
 import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { ThreadPullRequestsPanel } from "./pullRequest/ThreadPullRequestsPanel";
 import { useDeviceState } from "~/state/device";
@@ -2016,6 +2017,17 @@ export default function ChatView(props: ChatViewProps) {
   const activeRightPanelSurface = useRightPanelStore((state) =>
     selectActiveRightPanelSurface(state.byThreadKey, activeThreadRef),
   );
+  // Task threads start with the task details panel once, so the goal stays
+  // visible beside the first conversation view.
+  const taskDetailsInitialized = useRef(new Set<string>());
+  useEffect(() => {
+    if (!activeThreadRef || !activeThreadKey || !activeThread?.task) return;
+    if (taskDetailsInitialized.current.has(activeThreadKey)) return;
+    taskDetailsInitialized.current.add(activeThreadKey);
+    if (rightPanelState.surfaces.length === 0) {
+      useRightPanelStore.getState().open(activeThreadRef, "task-details");
+    }
+  }, [activeThread?.task, activeThreadKey, activeThreadRef, rightPanelState.surfaces.length]);
   const activePreviewState = useThreadPreviewState(activeThreadRef);
   const activePreviewServerEpoch = activePreviewState.serverEpoch;
   const resolvePreviewRuntimeTabId = useMemo(
@@ -4561,6 +4573,10 @@ export default function ChatView(props: ChatViewProps) {
     if (!activeThreadRef) return;
     useRightPanelStore.getState().open(activeThreadRef, "agents");
   }, [activeThreadRef]);
+  const addTaskDetailsSurface = useCallback(() => {
+    if (!activeThreadRef || !activeThread?.task) return;
+    useRightPanelStore.getState().open(activeThreadRef, "task-details");
+  }, [activeThread?.task, activeThreadRef]);
   const supportsThreadPullRequests =
     serverConfig?.environment.capabilities.threadPullRequests === true;
   const visiblePullRequests = visibleThreadPullRequests(
@@ -9585,7 +9601,9 @@ export default function ChatView(props: ChatViewProps) {
     </div>
   );
   const rightPanelContent = activeThreadRef ? (
-    renderedRightPanelSurface?.kind === "preview" ? (
+    renderedRightPanelSurface?.kind === "task-details" ? (
+      <TaskDetailsPanel threadRef={activeThreadRef} />
+    ) : renderedRightPanelSurface?.kind === "preview" ? (
       <Suspense fallback={null}>
         <PreviewPanel
           mode="embedded"
@@ -10343,6 +10361,7 @@ export default function ChatView(props: ChatViewProps) {
           onAddPullRequests={addPullRequestsSurface}
           onAddAgents={addAgentsSurface}
           onAddDevice={addDeviceSurface}
+          onAddTaskDetails={addTaskDetailsSurface}
           browserAvailable={isPreviewSupportedInRuntime()}
           terminalAvailable={activeProject !== null}
           diffAvailable={isServerThread && isGitRepo}
@@ -10351,6 +10370,7 @@ export default function ChatView(props: ChatViewProps) {
           pullRequestsAvailable={pullRequestsSurfaceAvailable}
           agentsAvailable
           deviceAvailable={activeThreadRef !== null}
+          taskDetailsAvailable={activeThread?.task !== undefined}
           liveAgentCount={agentPanelModel.liveCount}
         >
           {rightPanelContent}
@@ -10401,6 +10421,7 @@ export default function ChatView(props: ChatViewProps) {
             onAddPullRequests={addPullRequestsSurface}
             onAddAgents={addAgentsSurface}
             onAddDevice={addDeviceSurface}
+            onAddTaskDetails={addTaskDetailsSurface}
             browserAvailable={isPreviewSupportedInRuntime()}
             terminalAvailable={activeProject !== null}
             diffAvailable={isServerThread && isGitRepo}
@@ -10409,6 +10430,7 @@ export default function ChatView(props: ChatViewProps) {
             pullRequestsAvailable={pullRequestsSurfaceAvailable}
             agentsAvailable
             deviceAvailable={activeThreadRef !== null}
+            taskDetailsAvailable={activeThread?.task !== undefined}
             liveAgentCount={agentPanelModel.liveCount}
           >
             {rightPanelContent}

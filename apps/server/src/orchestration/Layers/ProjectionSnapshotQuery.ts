@@ -30,6 +30,7 @@ import {
   ModelSelection,
   ProjectId,
   ThreadLinkedPullRequest,
+  ThreadTaskDetails,
   ThreadTitleState,
   ThreadId,
   ThreadPullRequestSnapshot,
@@ -132,6 +133,7 @@ const ProjectionThreadDbRowSchema = ProjectionThread.mapFields(
     titleState: Schema.NullOr(Schema.fromJsonString(ThreadTitleState)),
     linkedPullRequest: Schema.NullOr(Schema.fromJsonString(ThreadLinkedPullRequest)),
     branchPullRequest: Schema.NullOr(Schema.fromJsonString(ThreadLinkedPullRequest)),
+    task: Schema.NullOr(Schema.fromJsonString(ThreadTaskDetails)),
   }),
 );
 const ProjectionThreadActivityDbRowSchema = ProjectionThreadActivity.mapFields(
@@ -575,6 +577,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
           worktree_path AS "worktreePath",
           linked_pull_request_json AS "linkedPullRequest",
           branch_pull_request_json AS "branchPullRequest",
+          task_json AS "task",
           latest_turn_id AS "latestTurnId",
           created_at AS "createdAt",
           updated_at AS "updatedAt",
@@ -616,6 +619,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
           worktree_path AS "worktreePath",
           linked_pull_request_json AS "linkedPullRequest",
           branch_pull_request_json AS "branchPullRequest",
+          task_json AS "task",
           latest_turn_id AS "latestTurnId",
           created_at AS "createdAt",
           updated_at AS "updatedAt",
@@ -689,6 +693,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
           worktree_path AS "worktreePath",
           linked_pull_request_json AS "linkedPullRequest",
           branch_pull_request_json AS "branchPullRequest",
+          task_json AS "task",
           latest_turn_id AS "latestTurnId",
           created_at AS "createdAt",
           updated_at AS "updatedAt",
@@ -1254,6 +1259,7 @@ const makeProjectionSnapshotQuery = Effect.gen(function* () {
           worktree_path AS "worktreePath",
           linked_pull_request_json AS "linkedPullRequest",
           branch_pull_request_json AS "branchPullRequest",
+          task_json AS "task",
           latest_turn_id AS "latestTurnId",
           created_at AS "createdAt",
           updated_at AS "updatedAt",
@@ -2316,6 +2322,7 @@ pending_approval_requests AS (
 
               const threads: ReadonlyArray<OrchestrationThread> = threadRows.map((row) => ({
                 id: row.threadId,
+                ...(row.task == null ? {} : { task: row.task }),
                 projectId: row.projectId,
                 title: row.title,
                 modelSelection: row.modelSelection,
@@ -2561,6 +2568,7 @@ pending_approval_requests AS (
                 }
                 threads.push({
                   id: row.threadId,
+                  ...(row.task == null ? {} : { task: row.task }),
                   projectId: row.projectId,
                   title: row.title,
                   modelSelection: row.modelSelection,
@@ -2880,6 +2888,7 @@ pending_approval_requests AS (
                 ),
                 threads: threadRows.map((row): OrchestrationThreadShell => ({
                   id: row.threadId,
+                  ...(row.task == null ? {} : { task: row.task }),
                   projectId: row.projectId,
                   title: row.title,
                   modelSelection: row.modelSelection,
@@ -3233,6 +3242,7 @@ pending_approval_requests AS (
 
       return Option.some({
         id: threadRow.value.threadId,
+        ...(threadRow.value.task == null ? {} : { task: threadRow.value.task }),
         projectId: threadRow.value.projectId,
         title: threadRow.value.title,
         modelSelection: threadRow.value.modelSelection,

@@ -163,7 +163,11 @@ export function getLatestThreadForProject<
 // on the same order.
 const PIN_ORDER_DIGITS = "abcdefghijklmnopqrstuvwxyz";
 
-function isValidPinOrderKey(key: string): boolean {
+/**
+ * Whether a fractional order key is well-formed. Shared by the pinned block,
+ * the active list, and the task board's column ordering.
+ */
+export function isValidOrderKey(key: string): boolean {
   if (key.length === 0) return false;
   for (const char of key) {
     if (!PIN_ORDER_DIGITS.includes(char)) return false;
@@ -202,8 +206,8 @@ function pinOrderMidpoint(a: string, b: string): string {
 export function pinOrderKeyBetween(before: string | null, after: string | null): string | null {
   const a = before ?? "";
   const b = after ?? "";
-  if (a !== "" && !isValidPinOrderKey(a)) return null;
-  if (b !== "" && !isValidPinOrderKey(b)) return null;
+  if (a !== "" && !isValidOrderKey(a)) return null;
+  if (b !== "" && !isValidOrderKey(b)) return null;
   if (b !== "" && a >= b) return null;
   return pinOrderMidpoint(a, b);
 }
