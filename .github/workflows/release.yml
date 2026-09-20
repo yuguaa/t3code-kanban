@@ -219,7 +219,9 @@ jobs:
     needs: [preflight]
     if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The full check, typecheck, and test run needs more than ten minutes on a
+    # GitHub-hosted runner; a shorter budget cancels the job mid-run.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v6
