@@ -226,8 +226,8 @@ it.layer(piAdapterTestLayer)("PiAdapterLive", (it) => {
       const requests = yield* Effect.promise(() => readJsonLines(requestLog));
       const env = requests.find((request) => request.type === "mock.env");
       assert.deepStrictEqual(
-        { mcpUrl: env?.mcpUrl, mcpToken: env?.mcpToken },
-        { mcpUrl: "http://127.0.0.1:4321/mcp", mcpToken: "secret-token" },
+        { mcpUrl: env?.mcpUrl, mcpToken: env?.mcpToken, taskWorkflow: env?.taskWorkflow },
+        { mcpUrl: "http://127.0.0.1:4321/mcp", mcpToken: "secret-token", taskWorkflow: "1" },
       );
       yield* adapter.stopSession(threadId);
     }).pipe(Effect.scoped),

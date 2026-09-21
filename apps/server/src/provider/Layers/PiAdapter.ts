@@ -68,10 +68,11 @@ import {
   parseT3PiApprovalEnvelope,
   parseT3PiQuestionEnvelope,
   T3_PI_MCP_TOKEN_ENV,
+  T3_PI_MCP_URL_ENV,
   T3_PI_QUESTION_CUSTOM_MARKER,
   T3_PI_QUESTION_OTHER_VALUE,
-  T3_PI_MCP_URL_ENV,
   T3_PI_RUNTIME_MODE_ENV,
+  T3_PI_TASK_WORKFLOW_ENV,
 } from "../pi/piExtension.ts";
 import { buildPiEnvironment, PI_REASONING_OPTION_ID, piLaunchArgv } from "./PiProvider.ts";
 
@@ -711,6 +712,11 @@ export function makePiAdapter(piSettings: PiSettings, options: PiAdapterLiveOpti
               ? {
                   [T3_PI_MCP_URL_ENV]: mcpSession.endpoint,
                   [T3_PI_MCP_TOKEN_ENV]: mcpSession.authorizationHeader.replace(/^Bearer\s+/i, ""),
+                  // The task toolkit's instructions only make sense while the
+                  // task tools are attached to this session.
+                  ...(mcpSession.capabilities.has("task")
+                    ? { [T3_PI_TASK_WORKFLOW_ENV]: "1" }
+                    : {}),
                 }
               : {}),
           };

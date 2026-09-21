@@ -75,6 +75,7 @@ function runRpc() {
         type: "mock.env",
         mcpUrl: process.env.T3_MCP_URL ?? null,
         mcpToken: process.env.T3_MCP_BEARER_TOKEN ?? null,
+        taskWorkflow: process.env.T3_TASK_WORKFLOW ?? null,
       })}\n`,
     );
   }

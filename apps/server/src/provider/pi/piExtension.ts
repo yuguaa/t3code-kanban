@@ -13,6 +13,9 @@
  *      `tools/call` over HTTP, so pi gets the preview toolkit like the other
  *      providers.
  *
+ * When `T3_TASK_WORKFLOW` is set, the `before_agent_start` handler appends the
+ * shared task workflow instructions so a pi-driven task moves its own card.
+ *
  * The select title is a JSON envelope `{ t3: "approval", ... }` so the
  * adapter can tell T3's own requests apart from any other extension's UI.
  *
@@ -22,9 +25,13 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
+import { AGENT_SYSTEM_PROMPT } from "../AgentSystemPrompt.ts";
+
 export const T3_PI_RUNTIME_MODE_ENV = "T3_PI_RUNTIME_MODE";
 export const T3_PI_MCP_URL_ENV = "T3_MCP_URL";
 export const T3_PI_MCP_TOKEN_ENV = "T3_MCP_BEARER_TOKEN";
+/** Set when the session's T3 MCP credential carries the task toolkit. */
+export const T3_PI_TASK_WORKFLOW_ENV = "T3_TASK_WORKFLOW";
 export const T3_PI_APPROVAL_MARKER = "t3-approval";
 /** Emitted by the user's `ask_user` extension through `ctx.ui.select` in RPC mode. */
 export const T3_PI_QUESTION_MARKER = "t3-question";
@@ -124,6 +131,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 const RUNTIME_MODE_ENV = ${JSON.stringify(T3_PI_RUNTIME_MODE_ENV)};
 const MCP_URL_ENV = ${JSON.stringify(T3_PI_MCP_URL_ENV)};
 const MCP_TOKEN_ENV = ${JSON.stringify(T3_PI_MCP_TOKEN_ENV)};
+const TASK_WORKFLOW_ENV = ${JSON.stringify(T3_PI_TASK_WORKFLOW_ENV)};
+const TASK_WORKFLOW_PROMPT = ${JSON.stringify(AGENT_SYSTEM_PROMPT)};
 const MCP_TOOL_PREFIX = ${JSON.stringify(T3_PI_MCP_TOOL_PREFIX)};
 const BROWSER_GUIDELINES = ${JSON.stringify(T3_PI_BROWSER_GUIDELINES)};
 const APPROVAL_MARKER = ${JSON.stringify(T3_PI_APPROVAL_MARKER)};
@@ -200,6 +209,11 @@ async function mcpRequest(url: string, token: string, body: Json, sessionId: str
 
 export default async function (pi: ExtensionAPI) {
   const approvedForSession = new Set<string>();
+
+  pi.on("before_agent_start", async (event) => {
+    if (process.env[TASK_WORKFLOW_ENV] !== "1") return undefined;
+    return { systemPrompt: event.systemPrompt + "\n\n" + TASK_WORKFLOW_PROMPT };
+  });
 
   pi.on("tool_call", async (event, ctx) => {
     if (!needsApproval(event.toolName)) return undefined;
