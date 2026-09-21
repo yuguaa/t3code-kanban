@@ -10942,6 +10942,12 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 createThread: {
                   projectId: defaultProjectId,
                   title: "Bootstrap Thread",
+                  task: {
+                    content: "Track the bootstrap",
+                    attachments: [],
+                    statusId: "todo",
+                    orderKey: createdAt,
+                  },
                   modelSelection: defaultModelSelection,
                   runtimeMode: "full-access",
                   interactionMode: "default",
@@ -10963,6 +10969,18 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         );
 
         assert.equal(response.sequence, 8);
+        // The task a board-created thread was born with must survive the
+        // bootstrap split into thread.create + turn start.
+        const bootstrapCreateCommand = dispatchedCommands[0];
+        assertTrue(bootstrapCreateCommand?.type === "thread.create");
+        if (bootstrapCreateCommand?.type === "thread.create") {
+          assert.deepEqual(bootstrapCreateCommand.task, {
+            content: "Track the bootstrap",
+            attachments: [],
+            statusId: "todo",
+            orderKey: createdAt,
+          });
+        }
         assert.deepEqual(
           dispatchedCommands.map((command) => command.type),
           [

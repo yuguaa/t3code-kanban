@@ -23,6 +23,7 @@ import {
   type AuthAccessStreamEvent,
   type AuthEnvironmentScope,
   AuthSessionId,
+  ChatImageAttachment,
   ClientConnectionMethod,
   ClientDeviceType,
   ClientOs,
@@ -1398,6 +1399,19 @@ const makeWsRpcLayer = (
                 threadId: command.threadId,
                 projectId: bootstrap.createThread.projectId,
                 title: bootstrap.createThread.title,
+                // The bootstrap's task attachments are still client uploads; the
+                // turn's message already carries the claimed copies, so the task
+                // references those instead of re-claiming the same files.
+                ...(bootstrap.createThread.task
+                  ? {
+                      task: {
+                        ...bootstrap.createThread.task,
+                        attachments: finalTurnStartCommand.message.attachments.filter(
+                          Schema.is(ChatImageAttachment),
+                        ),
+                      },
+                    }
+                  : {}),
                 modelSelection: bootstrap.createThread.modelSelection,
                 runtimeMode: bootstrap.createThread.runtimeMode,
                 interactionMode: bootstrap.createThread.interactionMode,
