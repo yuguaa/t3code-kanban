@@ -26,6 +26,7 @@ import { useThreadActions } from "../../hooks/useThreadActions";
 import { useUiStateStore } from "../../uiStateStore";
 import { Button } from "../ui/button";
 import { NoProjectsHero } from "../NoProjectsHero";
+import { ScrollArea } from "../ui/scroll-area";
 import { SidebarInset } from "../ui/sidebar";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { CreateTaskDialog } from "./CreateTaskDialog";
@@ -333,95 +334,97 @@ export function TaskBoardPage() {
         </p>
       )}
       {view === "board" ? (
-        <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-4" aria-label="Task board">
-          {statuses.map((status) => {
-            const column = tasks.filter((t) => statusFor(t)?.id === status.id);
-            return (
-              <section
-                key={status.id}
-                aria-label={`${status.name} column`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDropTarget(status.id);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  void move(status);
-                }}
-                className={cn(
-                  "flex min-w-[250px] flex-1 flex-col rounded-xl border border-border/60 bg-muted/10 transition-colors",
-                  dropTarget === status.id && "border-primary/40 bg-muted/30",
-                )}
-              >
-                <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border/50 px-3">
-                  <TaskStatusIcon status={status} />
-                  <h2 className="text-sm font-medium">{status.name}</h2>
-                  <span className="rounded-full bg-muted/70 px-1.5 text-xs tabular-nums text-muted-foreground">
-                    {column.length}
-                  </span>
-                  <button
-                    aria-label={`Add task to ${status.name}`}
-                    className="ml-auto cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => beginCreate(directCreateProjectKey, status.id)}
-                  >
-                    <PlusIcon className="size-4" />
-                  </button>
-                </div>
-                <div className="min-h-20 flex-1 space-y-2 overflow-y-auto p-2">
-                  {column.map((thread) => (
-                    <article
-                      key={`${thread.environmentId}:${thread.id}`}
-                      draggable
-                      onDragStart={(e) => {
-                        setDragged(thread);
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", thread.id);
-                      }}
-                      onDragEnd={() => {
-                        setDragged(null);
-                        setDropTarget(null);
-                      }}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        void move(status, thread);
-                      }}
-                      onContextMenu={(event) => void openTaskContextMenu(event, thread)}
-                      className={cn(
-                        "rounded-lg border border-border/60 bg-background/65 text-left transition-colors hover:border-border",
-                        dragged?.id === thread.id && "opacity-40",
-                      )}
+        <ScrollArea className="min-h-0 flex-1" aria-label="Task board">
+          <div className="flex h-full gap-3 p-4">
+            {statuses.map((status) => {
+              const column = tasks.filter((t) => statusFor(t)?.id === status.id);
+              return (
+                <section
+                  key={status.id}
+                  aria-label={`${status.name} column`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDropTarget(status.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    void move(status);
+                  }}
+                  className={cn(
+                    "flex min-w-[250px] flex-1 flex-col rounded-xl border border-border/60 bg-muted/10 transition-colors",
+                    dropTarget === status.id && "border-primary/40 bg-muted/30",
+                  )}
+                >
+                  <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border/50 px-3">
+                    <TaskStatusIcon status={status} />
+                    <h2 className="text-sm font-medium">{status.name}</h2>
+                    <span className="rounded-full bg-muted/70 px-1.5 text-xs tabular-nums text-muted-foreground">
+                      {column.length}
+                    </span>
+                    <button
+                      aria-label={`Add task to ${status.name}`}
+                      className="ml-auto cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      onClick={() => beginCreate(directCreateProjectKey, status.id)}
                     >
-                      <button
-                        className="w-full space-y-2.5 p-3 text-left"
-                        onClick={() => open(thread)}
+                      <PlusIcon className="size-4" />
+                    </button>
+                  </div>
+                  <div className="min-h-20 flex-1 space-y-2 overflow-y-auto p-2">
+                    {column.map((thread) => (
+                      <article
+                        key={`${thread.environmentId}:${thread.id}`}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragged(thread);
+                          e.dataTransfer.effectAllowed = "move";
+                          e.dataTransfer.setData("text/plain", thread.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragged(null);
+                          setDropTarget(null);
+                        }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void move(status, thread);
+                        }}
+                        onContextMenu={(event) => void openTaskContextMenu(event, thread)}
+                        className={cn(
+                          "rounded-lg border border-border/60 bg-background/65 text-left transition-colors hover:border-border",
+                          dragged?.id === thread.id && "opacity-40",
+                        )}
                       >
-                        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-                          <span className="truncate">{projectName(thread)}</span>
-                          <span className="shrink-0 rounded-full border border-border/70 px-1.5 py-0.5 text-[10px]">
-                            {agentName(thread)}
-                          </span>
-                        </div>
-                        <h3 className="line-clamp-2 text-sm leading-5">{thread.title}</h3>
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <span
-                            className={cn(
-                              "size-1.5 rounded-full bg-muted-foreground/40",
-                              thread.session?.status === "running" &&
-                                "animate-pulse bg-emerald-500",
-                            )}
-                          />
-                          {taskExecution(thread)}
-                        </div>
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+                        <button
+                          className="w-full space-y-2.5 p-3 text-left"
+                          onClick={() => open(thread)}
+                        >
+                          <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                            <span className="truncate">{projectName(thread)}</span>
+                            <span className="shrink-0 rounded-full border border-border/70 px-1.5 py-0.5 text-[10px]">
+                              {agentName(thread)}
+                            </span>
+                          </div>
+                          <h3 className="line-clamp-2 text-sm leading-5">{thread.title}</h3>
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span
+                              className={cn(
+                                "size-1.5 rounded-full bg-muted-foreground/40",
+                                thread.session?.status === "running" &&
+                                  "animate-pulse bg-emerald-500",
+                              )}
+                            />
+                            {taskExecution(thread)}
+                          </div>
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </ScrollArea>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
           {listGroups.length > 0 && (
