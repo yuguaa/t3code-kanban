@@ -134,6 +134,16 @@ export const make = Effect.gen(function* () {
       !path.isAbsolute(relative)
     );
   };
+  // Symlinked ancestors (macOS temp dirs under `/var`, a home directory on
+  // another volume) are normal and keep their spelling. A symlinked leaf is not
+  // ours: removing through it can reach a tree the server does not own.
+  const canonicalDirectory = (target: string) =>
+    Effect.gen(function* () {
+      const resolved = path.resolve(target);
+      const realParent = yield* fs.realPath(path.dirname(resolved));
+      const realTarget = yield* fs.realPath(resolved);
+      return realTarget === path.join(realParent, path.basename(resolved)) ? realTarget : null;
+    });
   const hasTerminal = (worktreePath: string) =>
     [...liveTerminals.values()]
       .flatMap((entries) => [...entries.values()])
@@ -189,7 +199,8 @@ export const make = Effect.gen(function* () {
       yield* threadDeletion.drainThrough(snapshotSequence);
     }
     const snapshot = yield* readThreads();
-    const root = yield* fs.realPath(config.worktreesDir);
+    if ((yield* canonicalDirectory(config.worktreesDir)) === null) return;
+    const root = path.resolve(config.worktreesDir);
     const refreshedDefaultRefs = new Map<string, Set<string>>();
     const groups = Map.groupBy(
       snapshot.threads.filter((thread) => thread.worktreePath !== null),
@@ -215,7 +226,7 @@ export const make = Effect.gen(function* () {
         continue;
       yield* Effect.gen(function* () {
         if (!inside(root, worktreePath) || !(yield* fs.exists(worktreePath))) return;
-        if ((yield* fs.realPath(worktreePath)) !== worktreePath) return;
+        if ((yield* canonicalDirectory(worktreePath)) === null) return;
         if (yield* containsProjectRoot(worktreePath, [project, ...snapshot.projects])) return;
         // A linked worktree has a .git file. Never remove a main checkout.
         if ((yield* fs.stat(path.join(worktreePath, ".git"))).type !== "File") return;
@@ -373,14 +384,16 @@ export const make = Effect.gen(function* () {
     rotatedLogs: boolean,
   ) {
     if (days === null || !(yield* fs.exists(root))) return;
-    const realRoot = yield* fs.realPath(root);
-    if (realRoot !== path.resolve(root)) return;
+    const realRoot = yield* canonicalDirectory(root);
+    if (realRoot === null) return;
+    const resolvedRoot = path.resolve(root);
     const visit = Effect.fn("StorageCleanup.visitFiles")(function* (
       directory: string,
     ): Effect.fn.Return<void, PlatformError | ServerSettingsError> {
       for (const name of yield* fs.readDirectory(directory)) {
         const target = path.join(directory, name);
-        if ((yield* fs.realPath(target)) !== target || !inside(realRoot, target)) continue;
+        const realTarget = yield* canonicalDirectory(target);
+        if (realTarget === null || !inside(realRoot, realTarget)) continue;
         const stat = yield* fs.stat(target);
         if (stat.type === "Directory" && rotatedLogs) {
           yield* visit(target);
@@ -395,7 +408,7 @@ export const make = Effect.gen(function* () {
         }
       }
     });
-    yield* visit(realRoot);
+    yield* visit(resolvedRoot);
   });
 
   const sweep = Effect.fn("StorageCleanup.sweep")(function* () {
