@@ -7,7 +7,7 @@ import {
   type ChatAttachment,
   type ChatImageAttachment,
   type UserInputAttachments,
-  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
+  getProviderAttachmentLimitError,
   type IsoDateTime,
   type OrchestrationCommand,
   OrchestrationDispatchCommandError,
@@ -148,10 +148,15 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
         readonly preserveExistingTaskReferences?: boolean;
         readonly reuseNormalizedUpload?: boolean;
       },
-    ) =>
-      Effect.forEach(
+    ) => {
+      // Decoded inline images can exceed the provider limit even when the
+      // encoded payload passed it, so the limit is re-checked as each lands.
+      const attachmentsWithDecodedSizes: Array<ChatAttachment | UploadChatImageAttachment> = [
+        ...attachments,
+      ];
+      return Effect.forEach(
         attachments,
-        (attachment) =>
+        (attachment, index) =>
           Effect.gen(function* () {
             if (!("dataUrl" in attachment)) {
               const cached = options?.reuseNormalizedUpload
@@ -296,6 +301,11 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
               sizeBytes: bytes.byteLength,
               ...(attachment.source ? { source: attachment.source } : {}),
             };
+            attachmentsWithDecodedSizes[index] = persistedAttachment;
+            const decodedLimitError = getProviderAttachmentLimitError(attachmentsWithDecodedSizes);
+            if (decodedLimitError) {
+              return yield* new OrchestrationDispatchCommandError({ message: decodedLimitError });
+            }
 
             const attachmentPath = resolveAttachmentPath({
               attachmentsDir: serverConfig.attachmentsDir,
@@ -323,6 +333,7 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
                   }),
               ),
             );
+            claimedAttachmentPaths.push(attachmentPath);
             if (attachment.id !== undefined) {
               finalAttachmentIdByClientId.set(attachment.id, attachmentId);
             }
@@ -331,6 +342,7 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
           }),
         { concurrency: 1 },
       );
+    };
 
     const normalizeTask = (
       threadId: string,
@@ -373,10 +385,9 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
       if (canonicalCommand.type === "thread.user-input.respond") {
         const originalEntries = Object.entries(canonicalCommand.attachmentsByQuestionId ?? {});
         const originalAttachments = originalEntries.flatMap(([, attachments]) => attachments);
-        if (originalAttachments.length > PROVIDER_SEND_TURN_MAX_ATTACHMENTS) {
-          return yield* new OrchestrationDispatchCommandError({
-            message: `You can attach up to ${PROVIDER_SEND_TURN_MAX_ATTACHMENTS} files per question response.`,
-          });
+        const attachmentLimitError = getProviderAttachmentLimitError(originalAttachments);
+        if (attachmentLimitError) {
+          return yield* new OrchestrationDispatchCommandError({ message: attachmentLimitError });
         }
         const attachments = yield* normalizeAttachments(
           canonicalCommand.threadId,
@@ -412,6 +423,13 @@ export const normalizeDispatchCommand = (command: ClientOrchestrationCommand) =>
           });
         }
         clientAttachmentIds.add(attachment.id);
+      }
+
+      const attachmentLimitError = getProviderAttachmentLimitError(
+        canonicalCommand.message.attachments,
+      );
+      if (attachmentLimitError) {
+        return yield* new OrchestrationDispatchCommandError({ message: attachmentLimitError });
       }
 
       const attachments = yield* normalizeAttachments(
